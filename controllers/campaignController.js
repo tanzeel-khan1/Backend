@@ -1,9 +1,58 @@
 const Campaign = require("../models/Campaign");
 const mongoose = require("mongoose");
-const { faker } = require("@faker-js/faker");
+// const { faker } = require("@faker-js/faker");
 
+// exports.createCampaign = async (req, res) => {
+//     const { faker } = await import("@faker-js/faker");
+
+//   try {
+//     const {
+//       campaignName,
+//       client,
+//       status,
+//       budget,
+//       spend,
+//       impressions,
+//       clicks,
+//       conversions,
+//       startDate,
+//       endDate,
+//     } = req.body;
+
+//     // ❌ agar client ya campaignName missing ho
+//     if (!campaignName || !client) {
+//       return res.status(400).json({
+//         message: "campaignName and client are required",
+//       });
+//     }
+
+//     const campaignData = {
+//       campaignName,
+//       client,
+//       status: status || "active",
+//       budget: budget || faker.number.int({ min: 5000, max: 100000 }),
+//       spend: spend || faker.number.int({ min: 1000, max: 90000 }),
+//       impressions: impressions || faker.number.int({ min: 10000, max: 5000000 }),
+//       clicks: clicks || faker.number.int({ min: 100, max: 50000 }),
+//       conversions: conversions || faker.number.int({ min: 10, max: 5000 }),
+//       startDate: startDate || faker.date.past(),
+//       endDate: endDate || faker.date.future(),
+//     };
+
+//     const campaign = await Campaign.create(campaignData);
+
+//     res.status(201).json({
+//       message: "Campaign created successfully",
+//       data: campaign,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
 exports.createCampaign = async (req, res) => {
   try {
+    const { faker } = await import("@faker-js/faker");
+
     const {
       campaignName,
       client,
@@ -17,7 +66,6 @@ exports.createCampaign = async (req, res) => {
       endDate,
     } = req.body;
 
-    // ❌ agar client ya campaignName missing ho
     if (!campaignName || !client) {
       return res.status(400).json({
         message: "campaignName and client are required",
@@ -39,12 +87,13 @@ exports.createCampaign = async (req, res) => {
 
     const campaign = await Campaign.create(campaignData);
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Campaign created successfully",
       data: campaign,
     });
+
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 exports.getCampaigns = async (req, res) => {
