@@ -31,9 +31,10 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use("/api/campaigns", require("./routes/campaignRoutes"));
-app.use("/api/auth", require("./routes/authRoutes"));
-
+// app.use("/api/campaigns", require("./routes/campaignRoutes"));
+// app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/campaigns", require("./routes/campaignRoutes"));
+app.use("/auth", require("./routes/authRoutes"));
 // Test route (optional but helpful)
 app.get("/", (req, res) => {
   res.send("API is running 🚀");
