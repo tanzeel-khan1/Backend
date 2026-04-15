@@ -22,7 +22,6 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
-const mongoose = require("mongoose");
 
 dotenv.config();
 
@@ -31,20 +30,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Ensure DB connection for serverless
-app.use(async (req, res, next) => {
-  if (mongoose.connection.readyState !== 1) {
-    const connectDB = require("./config/db");
-    await connectDB();
-  }
-  next();
-});
-
 // Routes
-// app.use("/api/campaigns", require("./routes/campaignRoutes"));
-// app.use("/api/auth", require("./routes/authRoutes"));
-app.use("/campaigns", require("./routes/campaignRoutes"));
-app.use("/auth", require("./routes/authRoutes"));
+app.use("/api/campaigns", require("./routes/campaignRoutes"));
+app.use("/api/auth", require("./routes/authRoutes"));
+
 // Test route (optional but helpful)
 app.get("/", (req, res) => {
   res.send("API is running 🚀");
@@ -52,7 +41,7 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-// Database connection for local development
+// 👇 Local server only
 if (process.env.NODE_ENV !== "production") {
   const connectDB = require("./config/db");
 
@@ -60,9 +49,6 @@ if (process.env.NODE_ENV !== "production") {
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
-  }).catch((err) => {
-    console.error("Failed to connect to database:", err);
-    process.exit(1);
   });
 }
 
