@@ -64,7 +64,9 @@ const corsOptions = {
 
 // ✅ Single source of truth for CORS + preflight
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+// NOTE: Avoid "*" route pattern here because it can crash
+// on some Express/router versions in serverless environments.
+app.options(/.*/, cors(corsOptions));
 
 // ✅ Body parser
 app.use(express.json());
