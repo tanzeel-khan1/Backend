@@ -41,38 +41,30 @@ dotenv.config();
 
 const app = express();
 
-// ✅ Allowed Origins
+// ✅ Allowed Origins (env + defaults)
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://campaign-dashboard-mauve.vercel.app"
+  "https://campaign-dashboard-mauve.vercel.app",
+  ...(process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean)
+    : [])
 ];
 
-// ✅ CORS Middleware (SAFE)
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // Postman / mobile apps
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error("CORS not allowed"));
-    }
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow server-to-server, curl, Postman, etc.
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("CORS not allowed for this origin"));
   },
-  credentials: true
-}));
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+};
 
-// ✅ FIXED: Manual preflight handler (NO "*" crash)
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://campaign-dashboard-mauve.vercel.app");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
+// ✅ Single source of truth for CORS + preflight
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // ✅ Body parser
 app.use(express.json());
