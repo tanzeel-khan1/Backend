@@ -35,7 +35,6 @@
 // module.exports = app;
 const express = require("express");
 const dotenv = require("dotenv");
-const cors = require("cors");
 
 dotenv.config();
 
@@ -50,23 +49,30 @@ const allowedOrigins = [
     : [])
 ];
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    // Allow server-to-server, curl, Postman, etc.
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error("CORS not allowed for this origin"));
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-};
+// ✅ Production-safe CORS middleware (sets headers on every response)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const isAllowedOrigin = origin && allowedOrigins.includes(origin);
 
-// ✅ Single source of truth for CORS + preflight
-app.use(cors(corsOptions));
-// NOTE: Avoid "*" route pattern here because it can crash
-// on some Express/router versions in serverless environments.
-app.options(/.*/, cors(corsOptions));
+  if (isAllowedOrigin) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Vary", "Origin");
+    res.header("Access-Control-Allow-Credentials", "true");
+  }
+
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  // Fast preflight response
+  if (req.method === "OPTIONS") {
+    if (isAllowedOrigin || !origin) {
+      return res.sendStatus(204);
+    }
+    return res.status(403).json({ message: "CORS not allowed for this origin" });
+  }
+
+  return next();
+});
 
 // ✅ Body parser
 app.use(express.json());
@@ -78,6 +84,19 @@ app.use("/api/auth", require("./routes/authRoutes"));
 // ✅ Test route
 app.get("/", (req, res) => {
   res.send("API is running 🚀");
+});
+
+// ✅ Not found handler (helps debug wrong routes)
+app.use((req, res) => {
+  return res.status(404).json({ message: "Route not found" });
+});
+
+// ✅ Global error handler
+app.use((err, req, res, next) => {
+  console.error("Server error:", err.message);
+  return res.status(err.status || 500).json({
+    message: err.message || "Internal server error"
+  });
 });
 
 const PORT = process.env.PORT || 5000;
