@@ -98,10 +98,25 @@ exports.createCampaign = async (req, res) => {
 };
 exports.getCampaigns = async (req, res) => {
   try {
-    const campaigns = await Campaign.find().sort({ createdAt: -1 });
-    res.status(200).json(campaigns);
+    const requestedLimit = Number(req.query.limit);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 500)
+      : 100;
+
+    const campaigns = await Campaign.find({})
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean()
+      .maxTimeMS(10000);
+
+    return res.status(200).json(campaigns);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const isTimeout = error?.name === "MongoServerError" && error?.code === 50;
+    return res.status(isTimeout ? 504 : 500).json({
+      message: isTimeout
+        ? "Database query timed out. Please try again."
+        : error.message
+    });
   }
 };
 
