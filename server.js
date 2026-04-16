@@ -41,16 +41,16 @@ dotenv.config();
 
 const app = express();
 
-// ✅ CORS CONFIG (IMPORTANT)
+// ✅ Allowed Origins
 const allowedOrigins = [
   "http://localhost:3000",
   "https://campaign-dashboard-mauve.vercel.app"
 ];
 
+// ✅ CORS Middleware (SAFE)
 app.use(cors({
   origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps / Postman)
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // Postman / mobile apps
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
@@ -61,23 +61,34 @@ app.use(cors({
   credentials: true
 }));
 
-// OPTIONAL: handle preflight
-app.options("*", cors());
+// ✅ FIXED: Manual preflight handler (NO "*" crash)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "https://campaign-dashboard-mauve.vercel.app");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+// ✅ Body parser
 app.use(express.json());
 
-// Routes
+// ✅ Routes
 app.use("/api/campaigns", require("./routes/campaignRoutes"));
 app.use("/api/auth", require("./routes/authRoutes"));
 
-// Test route
+// ✅ Test route
 app.get("/", (req, res) => {
   res.send("API is running 🚀");
 });
 
 const PORT = process.env.PORT || 5000;
 
-// Local server
+// ✅ Local server only
 if (process.env.NODE_ENV !== "production") {
   const connectDB = require("./config/db");
 
@@ -88,5 +99,5 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-// Vercel export
+// ✅ Export for Vercel
 module.exports = app;
