@@ -1,54 +1,6 @@
 const Campaign = require("../models/Campaign");
 const mongoose = require("mongoose");
-// const { faker } = require("@faker-js/faker");
 
-// exports.createCampaign = async (req, res) => {
-//     const { faker } = await import("@faker-js/faker");
-
-//   try {
-//     const {
-//       campaignName,
-//       client,
-//       status,
-//       budget,
-//       spend,
-//       impressions,
-//       clicks,
-//       conversions,
-//       startDate,
-//       endDate,
-//     } = req.body;
-
-//     // ❌ agar client ya campaignName missing ho
-//     if (!campaignName || !client) {
-//       return res.status(400).json({
-//         message: "campaignName and client are required",
-//       });
-//     }
-
-//     const campaignData = {
-//       campaignName,
-//       client,
-//       status: status || "active",
-//       budget: budget || faker.number.int({ min: 5000, max: 100000 }),
-//       spend: spend || faker.number.int({ min: 1000, max: 90000 }),
-//       impressions: impressions || faker.number.int({ min: 10000, max: 5000000 }),
-//       clicks: clicks || faker.number.int({ min: 100, max: 50000 }),
-//       conversions: conversions || faker.number.int({ min: 10, max: 5000 }),
-//       startDate: startDate || faker.date.past(),
-//       endDate: endDate || faker.date.future(),
-//     };
-
-//     const campaign = await Campaign.create(campaignData);
-
-//     res.status(201).json({
-//       message: "Campaign created successfully",
-//       data: campaign,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
 exports.createCampaign = async (req, res) => {
   try {
     const { faker } = await import("@faker-js/faker");
@@ -96,31 +48,69 @@ exports.createCampaign = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+// exports.getCampaigns = async (req, res) => {
+//   try {
+//     const requestedLimit = Number(req.query.limit);
+//     const limit = Number.isFinite(requestedLimit)
+//       ? Math.min(Math.max(requestedLimit, 1), 500)
+//       : 100;
+
+//     const campaigns = await Campaign.find({})
+//       .sort({ createdAt: -1 })
+//       .limit(limit)
+//       .lean()
+//       .maxTimeMS(10000);
+
+//     return res.status(200).json(campaigns);
+//   } catch (error) {
+//     const isTimeout = error?.name === "MongoServerError" && error?.code === 50;
+//     return res.status(isTimeout ? 504 : 500).json({
+//       message: isTimeout
+//         ? "Database query timed out. Please try again."
+//         : error.message
+//     });
+//   }
+// };
+
 exports.getCampaigns = async (req, res) => {
   try {
+    // ✅ Safe limit handling
     const requestedLimit = Number(req.query.limit);
     const limit = Number.isFinite(requestedLimit)
-      ? Math.min(Math.max(requestedLimit, 1), 500)
-      : 100;
+      ? Math.min(Math.max(requestedLimit, 1), 100) // 🔥 reduce max to 100
+      : 20;
 
+    // ✅ Optional pagination (recommended)
+    const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
+    const skip = (page - 1) * limit;
+
+    // ✅ Optimized query
     const campaigns = await Campaign.find({})
-      .sort({ createdAt: -1 })
+      .select("campaignName client status budget spend createdAt") // 🔥 only needed fields
+      .sort({ createdAt: -1 }) // ⚠️ requires index
+      .skip(skip)
       .limit(limit)
       .lean()
-      .maxTimeMS(10000);
+      .maxTimeMS(3000); // 🔥 reduce timeout
 
-    return res.status(200).json(campaigns);
+    return res.status(200).json({
+      page,
+      limit,
+      count: campaigns.length,
+      data: campaigns,
+    });
+
   } catch (error) {
-    const isTimeout = error?.name === "MongoServerError" && error?.code === 50;
+    const isTimeout =
+      error?.name === "MongoServerError" && error?.code === 50;
+
     return res.status(isTimeout ? 504 : 500).json({
       message: isTimeout
         ? "Database query timed out. Please try again."
-        : error.message
+        : error.message,
     });
   }
 };
-
-
 // 🟢 GET Single Campaign
 exports.getCampaignById = async (req, res) => {
   try {
