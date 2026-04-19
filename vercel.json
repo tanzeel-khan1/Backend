@@ -1,6 +1,9 @@
 {
   "version": 2,
   "functions": {
+    "api/campaigns/index.js": {
+      "maxDuration": 10
+    },
     "api/campaigns/getall.js": {
       "maxDuration": 10
     },
