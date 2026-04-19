@@ -29,6 +29,7 @@
 // module.exports = mongoose.model("Campaign", campaignSchema);
 
 const mongoose = require("mongoose");
+const { addThirtyDays, getCampaignExpiryDate } = require("../utils/campaignStatus");
 
 const campaignSchema = new mongoose.Schema(
   {
@@ -63,5 +64,23 @@ const campaignSchema = new mongoose.Schema(
 
 // 🔥 MOST IMPORTANT FIX
 campaignSchema.index({ createdAt: -1 });
+
+campaignSchema.pre("save", function syncCampaignDates(next) {
+  const baseDate = this.startDate ? new Date(this.startDate) : this.createdAt || new Date();
+
+  if (!this.startDate) {
+    this.startDate = baseDate;
+  }
+
+  if (!this.endDate) {
+    this.endDate = addThirtyDays(baseDate);
+  }
+
+  if (this.status !== "completed" && getCampaignExpiryDate(this) <= new Date()) {
+    this.status = "completed";
+  }
+
+  next();
+});
 
 module.exports = mongoose.model("Campaign", campaignSchema);

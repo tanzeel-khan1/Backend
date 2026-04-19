@@ -1,5 +1,6 @@
 const connectDB = require("../../config/db");
 const Campaign = require("../../models/Campaign");
+const { addThirtyDays } = require("../../utils/campaignStatus");
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -112,6 +113,14 @@ module.exports = async (req, res) => {
       startDate: toOptionalDate(body.startDate),
       endDate: toOptionalDate(body.endDate),
     };
+
+    if (!payload.startDate) {
+      payload.startDate = new Date();
+    }
+
+    if (!payload.endDate) {
+      payload.endDate = addThirtyDays(payload.startDate);
+    }
 
     const campaign = await withTimeout(
       Campaign.create(payload),

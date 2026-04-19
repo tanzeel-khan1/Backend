@@ -1,5 +1,6 @@
 const connectDB = require("../../config/db");
 const Campaign = require("../../models/Campaign");
+const { applyCompletedStatus, buildExpiredCampaignFilter } = require("../../utils/campaignStatus");
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -45,6 +46,11 @@ module.exports = async (req, res) => {
 
   try {
     await withTimeout(connectDB(), 5000, "Database connection timed out");
+    await withTimeout(
+      Campaign.updateMany(buildExpiredCampaignFilter(), { $set: { status: "completed" } }),
+      3000,
+      "Updating expired campaigns timed out"
+    );
 
     const requestedLimit = Number(req.query.limit);
     const limit = Number.isFinite(requestedLimit)
@@ -73,7 +79,7 @@ module.exports = async (req, res) => {
       page,
       limit,
       count: campaigns.length,
-      data: campaigns,
+      data: campaigns.map((campaign) => applyCompletedStatus(campaign)),
     });
   } catch (error) {
     const statusCode =

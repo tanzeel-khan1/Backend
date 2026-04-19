@@ -1,5 +1,10 @@
 const Campaign = require("../models/Campaign");
 const mongoose = require("mongoose");
+const {
+  addThirtyDays,
+  applyCompletedStatus,
+  buildExpiredCampaignFilter,
+} = require("../utils/campaignStatus");
 
 const respondJson = (req, res, statusCode, payload) => {
   if (req?.timedout || res.headersSent) {
@@ -57,6 +62,10 @@ exports.createCampaign = async (req, res) => {
       endDate: endDate || faker.date.future(),
     };
 
+    if (!campaignData.endDate) {
+      campaignData.endDate = addThirtyDays(new Date(campaignData.startDate));
+    }
+
     const campaign = await Campaign.create(campaignData);
 
     return respondJson(req, res, 201, {
@@ -70,6 +79,10 @@ exports.createCampaign = async (req, res) => {
 
 exports.getCampaigns = async (req, res) => {
   try {
+    await Campaign.updateMany(buildExpiredCampaignFilter(), {
+      $set: { status: "completed" },
+    });
+
     const requestedLimit = Number(req.query.limit);
     const limit = Number.isFinite(requestedLimit)
       ? Math.min(Math.max(requestedLimit, 1), 100)
@@ -100,7 +113,7 @@ exports.getCampaigns = async (req, res) => {
       page,
       limit,
       count: campaigns.length,
-      data: campaigns,
+      data: campaigns.map((campaign) => applyCompletedStatus(campaign)),
     });
   } catch (error) {
     const isTimeout = error?.code === 50 || error?.status === 504;
@@ -125,6 +138,14 @@ exports.getCampaignById = async (req, res) => {
 
     if (!campaign) {
       return respondJson(req, res, 404, { message: "Campaign not found" });
+    }
+
+    if (campaign.status !== "completed" && applyCompletedStatus(campaign.toObject()).status === "completed") {
+      campaign.status = "completed";
+      if (!campaign.endDate) {
+        campaign.endDate = addThirtyDays(campaign.startDate || campaign.createdAt || new Date());
+      }
+      await campaign.save();
     }
 
     return respondJson(req, res, 200, campaign);
