@@ -49,6 +49,7 @@ const campaignSchema = new mongoose.Schema(
       index: true, // ✅ useful for filtering later
     },
     budget: Number,
+    spend: Number,
     impressions: Number,
     clicks: Number,
     conversions: Number,
