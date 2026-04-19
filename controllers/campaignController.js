@@ -1,6 +1,26 @@
 const Campaign = require("../models/Campaign");
 const mongoose = require("mongoose");
 
+const respondJson = (req, res, statusCode, payload) => {
+  if (req?.timedout || res.headersSent) {
+    return;
+  }
+
+  return res.status(statusCode).json(payload);
+};
+
+const withTimeout = (promise, ms, message = "Operation timed out", statusCode = 504) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => {
+        const error = new Error(message);
+        error.status = statusCode;
+        reject(error);
+      }, ms);
+    }),
+  ]);
+
 exports.createCampaign = async (req, res) => {
   try {
     const { faker } = await import("@faker-js/faker");
@@ -19,7 +39,7 @@ exports.createCampaign = async (req, res) => {
     } = req.body;
 
     if (!campaignName || !client) {
-      return res.status(400).json({
+      return respondJson(req, res, 400, {
         message: "campaignName and client are required",
       });
     }
@@ -39,12 +59,12 @@ exports.createCampaign = async (req, res) => {
 
     const campaign = await Campaign.create(campaignData);
 
-    return res.status(201).json({
+    return respondJson(req, res, 201, {
       message: "Campaign created successfully",
       data: campaign,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return respondJson(req, res, error.status || 500, { message: error.message });
   }
 };
 
@@ -58,31 +78,36 @@ exports.getCampaigns = async (req, res) => {
     const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
     const skip = (page - 1) * limit;
 
-    const campaigns = await Campaign.find({})
-      .select(
-        "campaignName client status budget spend impressions clicks conversions createdAt updatedAt"
-      )
-      // `_id` is indexed by default in MongoDB, which avoids expensive
-      // sorts if the `createdAt` index is not present in production yet.
-      .sort({ _id: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean()
-      .maxTimeMS(3000)
-      .exec();
+    const campaigns = await withTimeout(
+      Campaign.find({})
+        .select(
+          "campaignName client status budget spend impressions clicks conversions createdAt updatedAt"
+        )
+        // `_id` is indexed by default in MongoDB, which avoids expensive
+        // sorts if the `createdAt` index is not present in production yet.
+        .sort({ _id: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .maxTimeMS(8000)
+        .exec(),
+      9000,
+      "Fetching campaigns timed out after 9 seconds",
+      504
+    );
 
-    return res.status(200).json({
+    return respondJson(req, res, 200, {
       page,
       limit,
       count: campaigns.length,
       data: campaigns,
     });
   } catch (error) {
-    const isTimeout = error?.code === 50;
+    const isTimeout = error?.code === 50 || error?.status === 504;
 
-    return res.status(isTimeout ? 504 : 500).json({
+    return respondJson(req, res, isTimeout ? 504 : 500, {
       message: isTimeout
-        ? "Database query timed out. Please try again."
+        ? error.message || "Database query timed out. Please try again."
         : error.message,
     });
   }
@@ -93,18 +118,18 @@ exports.getCampaignById = async (req, res) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid campaign ID" });
+      return respondJson(req, res, 400, { message: "Invalid campaign ID" });
     }
 
     const campaign = await Campaign.findById(id);
 
     if (!campaign) {
-      return res.status(404).json({ message: "Campaign not found" });
+      return respondJson(req, res, 404, { message: "Campaign not found" });
     }
 
-    return res.status(200).json(campaign);
+    return respondJson(req, res, 200, campaign);
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return respondJson(req, res, error.status || 500, { message: error.message });
   }
 };
 
@@ -113,7 +138,7 @@ exports.updateCampaign = async (req, res) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid campaign ID" });
+      return respondJson(req, res, 400, { message: "Invalid campaign ID" });
     }
 
     const campaign = await Campaign.findByIdAndUpdate(id, req.body, {
@@ -122,12 +147,12 @@ exports.updateCampaign = async (req, res) => {
     });
 
     if (!campaign) {
-      return res.status(404).json({ message: "Campaign not found" });
+      return respondJson(req, res, 404, { message: "Campaign not found" });
     }
 
-    return res.status(200).json(campaign);
+    return respondJson(req, res, 200, campaign);
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return respondJson(req, res, error.status || 500, { message: error.message });
   }
 };
 
@@ -136,18 +161,18 @@ exports.deleteCampaign = async (req, res) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid campaign ID" });
+      return respondJson(req, res, 400, { message: "Invalid campaign ID" });
     }
 
     const campaign = await Campaign.findByIdAndDelete(id);
 
     if (!campaign) {
-      return res.status(404).json({ message: "Campaign not found" });
+      return respondJson(req, res, 404, { message: "Campaign not found" });
     }
 
-    return res.status(200).json({ message: "Campaign deleted successfully" });
+    return respondJson(req, res, 200, { message: "Campaign deleted successfully" });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return respondJson(req, res, error.status || 500, { message: error.message });
   }
 };
 
@@ -178,11 +203,11 @@ exports.generateDummyCampaigns = async (req, res) => {
 
     const created = await Campaign.insertMany(campaigns);
 
-    return res.status(201).json({
+    return respondJson(req, res, 201, {
       message: `${count} dummy campaigns created`,
       data: created,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return respondJson(req, res, error.status || 500, { message: error.message });
   }
 };

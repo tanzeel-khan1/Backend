@@ -4,17 +4,19 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const app = express();
+const REQUEST_TIMEOUT_MS = 10000;
 
-// ✅ Allowed Origins (env + defaults)
+app.disable("x-powered-by");
+app.set("trust proxy", 1);
+
 const allowedOrigins = [
   "http://localhost:3000",
   "https://campaign-dashboard-mauve.vercel.app",
   ...(process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean)
-    : [])
+    : []),
 ];
 
-// ✅ Production-safe CORS middleware (sets headers on every response)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const isAllowedOrigin = origin && allowedOrigins.includes(origin);
@@ -27,46 +29,75 @@ app.use((req, res, next) => {
 
   res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("X-Content-Type-Options", "nosniff");
 
-  // Fast preflight response
   if (req.method === "OPTIONS") {
     if (isAllowedOrigin || !origin) {
       return res.sendStatus(204);
     }
+
     return res.status(403).json({ message: "CORS not allowed for this origin" });
   }
 
   return next();
 });
 
-// ✅ Body parser
-app.use(express.json());
+app.use((req, res, next) => {
+  req.timedout = false;
 
-// ✅ Routes
+  const timeoutId = setTimeout(() => {
+    req.timedout = true;
+
+    if (!res.headersSent) {
+      res.status(504).json({
+        message: "Request timed out after 10 seconds",
+      });
+    }
+  }, REQUEST_TIMEOUT_MS);
+
+  const clear = () => clearTimeout(timeoutId);
+  res.on("finish", clear);
+  res.on("close", clear);
+
+  return next();
+});
+
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+
+app.get("/health", (req, res) => {
+  return res.status(200).json({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.use("/api/campaigns", require("./routes/campaignRoutes"));
 app.use("/api/auth", require("./routes/authRoutes"));
 
-// ✅ Test route
 app.get("/", (req, res) => {
-  res.send("API is running 🚀");
+  return res.send("API is running 🚀");
 });
 
-// ✅ Not found handler (helps debug wrong routes)
 app.use((req, res) => {
   return res.status(404).json({ message: "Route not found" });
 });
 
-// ✅ Global error handler
 app.use((err, req, res, next) => {
   console.error("Server error:", err.message);
+
+  if (res.headersSent) {
+    return next(err);
+  }
+
   return res.status(err.status || 500).json({
-    message: err.message || "Internal server error"
+    message: err.message || "Internal server error",
   });
 });
 
 const PORT = process.env.PORT || 5000;
 
-// ✅ Local server only
 if (process.env.NODE_ENV !== "production") {
   const connectDB = require("./config/db");
 
@@ -77,5 +108,4 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-// ✅ Export for Vercel
 module.exports = app;
