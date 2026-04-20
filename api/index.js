@@ -7,7 +7,7 @@ const handler = serverless(app);
 module.exports = async (req, res) => {
   try {
     await connectDB();
-    return handler(req, res);
+    return await handler(req, res);
   } catch (error) {
     console.error("Server error:", error);
 
