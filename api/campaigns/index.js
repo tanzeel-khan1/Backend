@@ -101,19 +101,30 @@ module.exports = async (req, res) => {
 
     await withTimeout(connectDB(), 5000, "Database connection timed out");
 
-    const payload = {
-      campaignName,
-      client,
-      status,
-      budget: toOptionalNumber(body.budget),
-      spend: toOptionalNumber(body.spend),
-      impressions: toOptionalNumber(body.impressions),
-      clicks: toOptionalNumber(body.clicks),
-      conversions: toOptionalNumber(body.conversions),
-      startDate: toOptionalDate(body.startDate),
-      endDate: toOptionalDate(body.endDate),
-    };
-
+    // const payload = {
+    //   campaignName,
+    //   client,
+    //   status,
+    //   budget: toOptionalNumber(body.budget),
+    //   spend: toOptionalNumber(body.spend),
+    //   impressions: toOptionalNumber(body.impressions),
+    //   clicks: toOptionalNumber(body.clicks),
+    //   conversions: toOptionalNumber(body.conversions),
+    //   startDate: toOptionalDate(body.startDate),
+    //   endDate: toOptionalDate(body.endDate),
+    // };
+const payload = {
+  campaignName,
+  client,
+  status,
+  budget: toOptionalNumber(body.budget) ?? faker.number.int({ min: 5000, max: 100000 }),
+  spend: toOptionalNumber(body.spend) ?? faker.number.int({ min: 1000, max: 90000 }),
+  impressions: toOptionalNumber(body.impressions) ?? faker.number.int({ min: 10000, max: 5000000 }),
+  clicks: toOptionalNumber(body.clicks) ?? faker.number.int({ min: 100, max: 50000 }),
+  conversions: toOptionalNumber(body.conversions) ?? faker.number.int({ min: 10, max: 5000 }),
+  startDate: toOptionalDate(body.startDate) ?? new Date(),
+  endDate: toOptionalDate(body.endDate),
+};
     if (!payload.startDate) {
       payload.startDate = new Date();
     }
