@@ -69,7 +69,7 @@ exports.createCampaign = async (req, res) => {
     const campaign = await Campaign.create(campaignData);
 
     return respondJson(req, res, 201, {
-      message: "Campaign created successfully",
+      message: "Campaign crea successfully",
       data: campaign,
     });
   } catch (error) {
