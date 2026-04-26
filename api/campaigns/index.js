@@ -1,6 +1,7 @@
 const connectDB = require("../../config/db");
 const Campaign = require("../../models/Campaign");
 const { addThirtyDays } = require("../../utils/campaignStatus");
+const { faker } = require("@faker-js/faker");
 
 const allowedOrigins = [
   "http://localhost:3000",
