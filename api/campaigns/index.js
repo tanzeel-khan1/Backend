@@ -135,6 +135,7 @@ module.exports = async (req, res) => {
   } catch (error) {
     const isTimeout = error.message.includes("timed out");
     const isBadJson = error instanceof SyntaxError;
+    console.error("Error processing request:", error);
 
     return res.status(isBadJson ? 400 : isTimeout ? 504 : 500).json({
       message: isBadJson ? "Invalid JSON body" : error.message,
