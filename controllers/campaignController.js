@@ -26,69 +26,56 @@ const withTimeout = (promise, ms, message = "Operation timed out", statusCode = 
     }),
   ]);
 
-// exports.createCampaign = async (req, res) => {
-//   try {
-//     const { faker } = await import("@faker-js/faker");
+exports.createCampaign = async (req, res) => {
+  try {
+    const { faker } = await import("@faker-js/faker");
 
-//     const {
-//       campaignName,
-//       client,
-//       status,
-//       budget,
-//       spend,
-//       impressions,
-//       clicks,
-//       conversions,
-//       startDate,
-//       endDate,
-//     } = req.body;
+    const {
+      campaignName,
+      client,
+      status,
+      budget,
+      spend,
+      impressions,
+      clicks,
+      conversions,
+      startDate,
+      endDate,
+    } = req.body;
 
-//     if (!campaignName || !client) {
-//       return respondJson(req, res, 400, {
-//         message: "campaignName and client are required",
-//       });
-//     }
+    if (!campaignName || !client) {
+      return respondJson(req, res, 400, {
+        message: "campaignName and client are required",
+      });
+    }
 
-//     const campaignData = {
-//       campaignName,
-//       client,
-//       status: status || "active",
-//       budget: budget ?? faker.number.int({ min: 5000, max: 100000 }),
-//       spend: spend ?? faker.number.int({ min: 1000, max: 90000 }),
-//       impressions: impressions ?? faker.number.int({ min: 10000, max: 5000000 }),
-//       clicks: clicks ?? faker.number.int({ min: 100, max: 50000 }),
-//       conversions: conversions ?? faker.number.int({ min: 10, max: 5000 }),
-//       startDate: startDate || faker.date.past(),
-//       endDate: endDate || faker.date.future(),
-//     };
+    const campaignData = {
+      campaignName,
+      client,
+      status: status || "active",
+      budget: budget || faker.number.int({ min: 5000, max: 100000 }),
+      spend: spend || faker.number.int({ min: 1000, max: 90000 }),
+      impressions: impressions || faker.number.int({ min: 10000, max: 5000000 }),
+      clicks: clicks || faker.number.int({ min: 100, max: 50000 }),
+      conversions: conversions || faker.number.int({ min: 10, max: 5000 }),
+      startDate: startDate || faker.date.past(),
+      endDate: endDate || faker.date.future(),
+    };
 
-//     if (!campaignData.endDate) {
-//       campaignData.endDate = addThirtyDays(new Date(campaignData.startDate));
-//     }
+    if (!campaignData.endDate) {
+      campaignData.endDate = addThirtyDays(new Date(campaignData.startDate));
+    }
 
-//     const analyticsSource = req.body.analytics || {};
-//     const analyticsClicks = analyticsSource.clicks ?? campaignData.clicks;
-//     const analyticsImpressions = analyticsSource.impressions ?? campaignData.impressions;
-//     const analyticsConversions = analyticsSource.conversions ?? campaignData.conversions;
+    const campaign = await Campaign.create(campaignData);
 
-//     campaignData.analytics = {
-//       clicks: analyticsClicks,
-//       impressions: analyticsImpressions,
-//       conversions: analyticsConversions,
-//       ctr: analyticsSource.ctr ?? Number(((analyticsClicks / Math.max(analyticsImpressions, 1)) * 100).toFixed(2)),
-//       cpc: analyticsSource.cpc ?? Number((campaignData.spend / Math.max(analyticsClicks, 1)).toFixed(2)),
-//     };
-
-//     const campaign = await Campaign.create(campaignData);
-
-//     return respondJson(req, res, 201, {
-//       message: "Campaign created successfully",
-//       data: campaign,
-//     });
-//   } catch (error) {
-//     return respondJson(req, res, error.status || 500, { message: error.message });
-//   }
-// };
+    return respondJson(req, res, 201, {
+      message: "Campaign created successfully",
+      data: campaign,
+    });
+  } catch (error) {
+    return respondJson(req, res, error.status || 500, { message: error.message });
+  }
+};
 
 exports.getCampaigns = async (req, res) => {
   try {
@@ -107,7 +94,7 @@ exports.getCampaigns = async (req, res) => {
     const campaigns = await withTimeout(
       Campaign.find({})
         .select(
-          "campaignName client status budget spend impressions clicks conversions analytics createdAt updatedAt"
+          "campaignName client status budget spend impressions clicks conversions createdAt updatedAt"
         )
         // `_id` is indexed by default in MongoDB, which avoids expensive
         // sorts if the `createdAt` index is not present in production yet.
@@ -235,13 +222,6 @@ exports.generateDummyCampaigns = async (req, res) => {
         impressions,
         clicks,
         conversions,
-        analytics: {
-          clicks,
-          impressions,
-          conversions,
-          ctr: Number(((clicks / impressions) * 100).toFixed(2)),
-          cpc: Number((spend / Math.max(clicks, 1)).toFixed(2)),
-        },
         startDate: faker.date.past(),
         endDate: faker.date.future(),
       });
