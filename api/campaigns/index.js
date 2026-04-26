@@ -129,7 +129,7 @@ module.exports = async (req, res) => {
     );
 
     return res.status(201).json({
-      message: "Campaign created successfully",
+      message: "Campaign created fully",
       data: campaign,
     });
   } catch (error) {
